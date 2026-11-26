@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>FitCam</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px;
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    background: linear-gradient(160deg, #f6f1ff, #ece4ff); color: #21184d; text-align: center;
+  }
+  main { max-width: 340px; }
+  .logo { font-size: 30px; font-weight: 800; letter-spacing: -.5px; color: #6d3df0; margin: 0 0 18px; }
+  .spinner {
+    width: 38px; height: 38px; margin: 0 auto 18px; border-radius: 50%;
+    border: 4px solid #dccdfd; border-top-color: #7a5cff; animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h1 { font-size: 19px; margin: 0 0 8px; }
+  p { margin: 0; font-size: 14px; line-height: 1.6; color: #5b4f78; }
+  button {
+    margin-top: 20px; min-height: 46px; padding: 0 22px; border: 0; border-radius: 23px;
+    background: #7a5cff; color: #fff; font: inherit; font-weight: 700; font-size: 15px;
+  }
+  [hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <p class="logo">FitCam</p>
+  <div class="spinner" id="spinner" aria-hidden="true"></div>
+  <h1 id="title">FitCam으로 이동하고 있어요</h1>
+  <p id="detail">잠시만 기다려 주세요.</p>
+  <button id="retry" type="button" hidden>다시 시도</button>
+</main>
+<script>
+// The exhibition PC rewrites target.json with the day's tunnel address whenever the
+// tunnel (re)starts. The query string skips GitHub Pages' CDN cache so a new address
+// is seen within about a minute of being published.
+const title = document.getElementById('title');
+const detail = document.getElementById('detail');
+const retry = document.getElementById('retry');
+const spinner = document.getElementById('spinner');
+let timer;
+
+function waiting(message) {
+  title.textContent = '전시 서버를 준비하고 있어요';
+  detail.textContent = message;
+  retry.hidden = false;
+  clearTimeout(timer);
+  timer = setTimeout(go, 6000);
+}
+
+async function reachable(url) {
+  // Opaque no-cors request: resolves when the server answers, rejects when the tunnel is gone.
+  const controller = new AbortController();
+  const stop = setTimeout(() => controller.abort(), 6000);
+  try { await fetch(url, { mode: 'no-cors', cache: 'no-store', signal: controller.signal }); return true; }
+  catch { return false; }
+  finally { clearTimeout(stop); }
+}
+
+async function go() {
+  title.textContent = 'FitCam으로 이동하고 있어요';
+  detail.textContent = '잠시만 기다려 주세요.';
+  retry.hidden = true;
+  spinner.hidden = false;
+  try {
+    const response = await fetch('target.json?t=' + Date.now(), { cache: 'no-store' });
+    const { url } = await response.json();
+    if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/.test(url || '')) throw new Error('no target');
+    if (!(await reachable(url))) return waiting('곧 연결돼요. 자동으로 다시 시도할게요.');
+    location.replace(url + location.search + location.hash);
+  } catch {
+    waiting('곧 연결돼요. 자동으로 다시 시도할게요.');
+  }
+}
+
+retry.addEventListener('click', go);
+go();
+</script>
+</body>
+</html>
