@@ -65,6 +65,19 @@ async function reachable(url) {
   finally { clearTimeout(stop); }
 }
 
+function destination(base) {
+  const params = new URLSearchParams(location.search);
+  const root = base.replace(/\/$/, '');
+  // Kakao login returns here (the fixed address registered with Kakao) with ?code&state;
+  // hand them to the current tunnel's callback, which finishes the login.
+  if (params.has('state') && (params.has('code') || params.has('error'))) {
+    return root + '/api/auth/kakao/callback' + location.search;
+  }
+  // KakaoTalk message links carry the page to open: ?to=/recommend
+  const to = params.get('to') || '/';
+  return root + (/^\/(?!\/)[\w\-/]*$/.test(to) ? to : '/') + location.hash;
+}
+
 async function go() {
   title.textContent = 'FitCam으로 이동하고 있어요';
   detail.textContent = '잠시만 기다려 주세요.';
@@ -75,7 +88,7 @@ async function go() {
     const { url } = await response.json();
     if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/.test(url || '')) throw new Error('no target');
     if (!(await reachable(url))) return waiting('곧 연결돼요. 자동으로 다시 시도할게요.');
-    location.replace(url + location.search + location.hash);
+    location.replace(destination(url));
   } catch {
     waiting('곧 연결돼요. 자동으로 다시 시도할게요.');
   }
